@@ -9,16 +9,20 @@ import (
 	ma "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multiaddr"
 	manet "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multiaddr/net"
 	mh "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multihash"
-
 	core "github.com/jbenet/go-ipfs/core"
+	uio "github.com/jbenet/go-ipfs/unixfs/io"
+	u "github.com/jbenet/go-ipfs/util"
 )
 
 type handler struct {
 	ipfs
 }
 
+var log = u.Logger("http")
+
 // Serve starts the http server
 func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
+	log.Critical("starting http server")
 	r := mux.NewRouter()
 	handler := &handler{&ipfsHandler{node}}
 	r.HandleFunc("/ipfs/", handler.postHandler).Methods("POST")
@@ -45,9 +49,37 @@ func (i *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	dr, err := i.NewDagReader(nd)
 	if err != nil {
+		if err == uio.ErrIsDir {
+			log.Critical("is directory %s", path)
+			if path[len(path)-1:] != "/" {
+				log.Critical(" missing trailing slash redirect")
+				http.Redirect(w, r, "/ipfs/"+path+"/", 307)
+				return
+			}
+			// loop through files
+			for _, link := range nd.Links {
+				if link.Name == "index.html" {
+					log.Info("found index")
+					// return index page
+					nd, err := i.ResolvePath(path + "/index.html")
+					if err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						log.Error("%s", err)
+						return
+					}
+					dr, err := i.NewDagReader(nd)
+					if err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						log.Error("%s", err)
+						return
+					}
+					io.Copy(w, dr)
+					return
+				}
+			}
+		}
 		// TODO: return json object containing the tree data if it's a directory (err == ErrIsDir)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println(err)
 		return
 	}
 

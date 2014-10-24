@@ -2,10 +2,13 @@ package http
 
 import (
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 
+	"github.com/GeertJohan/go.rice"
 	"github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/gorilla/mux"
+
 	ma "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multiaddr"
 	manet "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multiaddr/net"
 	mh "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multihash"
@@ -16,6 +19,7 @@ import (
 
 type handler struct {
 	ipfs
+	templ *template.Template
 }
 
 var log = u.Logger("http")
@@ -24,7 +28,10 @@ var log = u.Logger("http")
 func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	log.Critical("starting http server")
 	r := mux.NewRouter()
-	handler := &handler{&ipfsHandler{node}}
+	handler := &handler{}
+	handler.ipfs = &ipfsHandler{node}
+	handler.templ = LoadTemplates("index.html")
+
 	r.HandleFunc("/ipfs/", handler.postHandler).Methods("POST")
 	r.PathPrefix("/ipfs/").Handler(handler).Methods("GET")
 	http.Handle("/", r)
@@ -104,4 +111,24 @@ func (i *handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	//TODO: return json representation of list instead
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(mh.Multihash(k).B58String()))
+}
+
+func LoadTemplates(list ...string) *template.Template {
+	templateBox, err := rice.FindBox("templates")
+	if err != nil {
+		log.Critical("%s", err)
+	}
+	fmt.Println(templateBox)
+	templates := template.New("")
+	for _, x := range list {
+		templateString, err := templateBox.String(x)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = templates.New(x).Parse(templateString)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	return templates
 }

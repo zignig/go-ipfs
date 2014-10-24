@@ -33,6 +33,7 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	handler.templ = LoadTemplates("index.html")
 
 	r.HandleFunc("/ipfs/", handler.postHandler).Methods("POST")
+	r.HandleFunc("/template/", handler.templateTest).Methods("GET")
 	r.PathPrefix("/ipfs/").Handler(handler).Methods("GET")
 	http.Handle("/", r)
 
@@ -42,6 +43,13 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	}
 
 	return http.ListenAndServe(host, nil)
+}
+
+func (i *handler) templateTest(w http.ResponseWriter, r *http.Request) {
+	err := i.templ.ExecuteTemplate(w, "index.html", new(interface{}))
+	if err != nil {
+		log.Critical(" template error %s", err)
+	}
 }
 
 func (i *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

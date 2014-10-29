@@ -28,12 +28,16 @@ var log = u.Logger("http")
 func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	log.Critical("starting http server")
 	r := mux.NewRouter()
+	// bind the ipfs service
 	handler := &handler{}
 	handler.ipfs = &ipfsHandler{node}
+	// load the templates
 	handler.templ = LoadTemplates("index.html")
 
 	r.HandleFunc("/ipfs/", handler.postHandler).Methods("POST")
+
 	r.HandleFunc("/template/", handler.templateTest).Methods("GET")
+	r.Handle("/static/", http.StripPrefix("/static/", http.FileServer(rice.MustFindBox("static").HTTPBox()))).Methods("GET")
 	r.PathPrefix("/ipfs/").Handler(handler).Methods("GET")
 	http.Handle("/", r)
 
@@ -50,6 +54,18 @@ func (i *handler) templateTest(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Critical(" template error %s", err)
 	}
+}
+
+func StaticFiles(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	name := params["filepath"]
+	static, err := rice.FindBox("static")
+	if err != nil {
+		log.Fatal(err)
+	}
+	//original := r.URL.Path
+	log.Critical(name)
+	http.FileServer(static.HTTPBox()).ServeHTTP(w, r)
 }
 
 func (i *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

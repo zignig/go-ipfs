@@ -2,12 +2,11 @@ package http
 
 import (
 	"fmt"
-	"html/template"
-	"io"
-	"net/http"
-
 	"github.com/GeertJohan/go.rice"
 	"github.com/gin-gonic/gin"
+	"html/template"
+	"io/ioutil"
+	"net/http"
 
 	ma "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multiaddr"
 	manet "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multiaddr/net"
@@ -26,7 +25,6 @@ var log = u.Logger("http")
 
 // Serve starts the http server
 //
-//ref http://trevorgattis.blogspot.com.au/2014/07/looking-at-gorillas-mux-i-wanted-to.html
 //ref https://github.com/spf13/dagobah
 
 // Serve is called from a command path
@@ -43,15 +41,14 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	// load the templates
 	handler.templ = LoadTemplates("index.html")
 	r.SetHTMLTemplate(handler.templ)
+
 	// top level routers
 
-	// ipns sub router
-	//ipnsRouter := r.PathPrefix("/ipns").Subrouter()
-	//ipnsRouter.HandleFunc("/", handler.ipnsResolve).Methods("GET")
+	// ipns router
+	r.GET("/ipns/*path", handler.ipnsResolve)
 
 	// ipfs sub router
-	//ipfsRouter := r.PathPrefix("/ipfs").Subrouter()
-	//ipfsRouter.HandleFunc("/", handler.ipfsResolve).Methods("GET")
+	r.GET("/ipfs/*path", handler.ipfsResolve)
 
 	// static files subrouter
 	r.GET("/static/*filepath", handler.staticFiles)
@@ -59,7 +56,7 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	//r.HandleFunc("/ipfs/", handler.postHandler).Methods("POST")
 
 	// some template tests
-	r.GET("/template/", handler.templateTest)
+	r.GET("/", handler.templateTest)
 
 	// TODO fix static
 	//r.PathPrefix("/ipfs/").Handler(handler).Methods("GET")
@@ -82,9 +79,10 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	return http.ListenAndServe(host, nil)
 }
 
-func (i *handler) ipnsResolve(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusInternalServerError)
-	log.Error("no ipns resolution yet")
+func (i *handler) ipnsResolve(c *gin.Context) {
+	ipnsPath := c.Params.ByName("path")
+
+	log.Error("%s", ipnsPath)
 	return
 }
 
@@ -106,24 +104,26 @@ func (i *handler) staticFiles(c *gin.Context) {
 	c.Request.URL.Path = original
 }
 
-func (i *handler) ipfsResolve(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path[5:]
+func (i *handler) ipfsResolve(c *gin.Context) {
+	path := c.Params.ByName("path")[1:]
+	fmt.Println("handle " + path)
 
 	nd, err := i.ResolvePath(path)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		//w.WriteHeader(http.StatusInternalServerError)
 		fmt.Println(err)
 		return
 	}
-
+	var data []byte
 	dr, err := i.NewDagReader(nd)
 	if err != nil {
 		// Return correct data for error type
+		log.Critical("%s", err)
 		if err == uio.ErrIsDir {
 			log.Critical("is directory %s", path)
 			if path[len(path)-1:] != "/" {
 				log.Critical("missing trailing slash redirect")
-				http.Redirect(w, r, "/ipfs/"+path+"/", 307)
+				c.Redirect(307, "/ipfs/"+path+"/")
 				return
 			}
 			// loop through files
@@ -135,18 +135,17 @@ func (i *handler) ipfsResolve(w http.ResponseWriter, r *http.Request) {
 					// return index page
 					nd, err := i.ResolvePath(path + "/index.html")
 					if err != nil {
-						w.WriteHeader(http.StatusInternalServerError)
 						log.Error("%s", err)
 						return
 					}
 					dr, err := i.NewDagReader(nd)
 					if err != nil {
-						w.WriteHeader(http.StatusInternalServerError)
 						log.Error("%s", err)
 						return
 					}
 					// write out the index page
-					io.Copy(w, dr)
+					data, _ = ioutil.ReadAll(dr)
+					c.Data(200, "text/html", data)
 					return
 				}
 				//&directoryListing.Append(link)
@@ -154,11 +153,13 @@ func (i *handler) ipfsResolve(w http.ResponseWriter, r *http.Request) {
 			// TODO retrun directoryListing and a templated page
 		}
 		// TODO: return json object containing the tree data if it's a directory (err == ErrIsDir)
-		w.WriteHeader(http.StatusInternalServerError)
+		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	// copy the dag data back to the http request
-	io.Copy(w, dr)
+	data, _ = ioutil.ReadAll(dr)
+	c.Data(200, "", data)
+	return
 }
 
 // out of action for now

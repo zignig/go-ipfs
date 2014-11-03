@@ -5,6 +5,7 @@ import (
 	"github.com/GeertJohan/go.rice"
 	"github.com/gin-gonic/gin"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -87,7 +88,7 @@ func (i *handler) ipnsResolve(c *gin.Context) {
 }
 
 func (i *handler) templateTest(c *gin.Context) {
-	obj := gin.H{"title": "The Title"}
+	obj := gin.H{"title": "The Title", "data": "this is data"}
 	c.HTML(200, "index.html", obj)
 }
 
@@ -111,10 +112,11 @@ func (i *handler) ipfsResolve(c *gin.Context) {
 	nd, err := i.ResolvePath(path)
 	if err != nil {
 		//w.WriteHeader(http.StatusInternalServerError)
+		c.String(500, "%s", err)
 		fmt.Println(err)
 		return
 	}
-	var data []byte
+
 	dr, err := i.NewDagReader(nd)
 	if err != nil {
 		// Return correct data for error type
@@ -135,30 +137,32 @@ func (i *handler) ipfsResolve(c *gin.Context) {
 					// return index page
 					nd, err := i.ResolvePath(path + "/index.html")
 					if err != nil {
+						c.String(500, "%s", err)
 						log.Error("%s", err)
 						return
 					}
 					dr, err := i.NewDagReader(nd)
 					if err != nil {
+						c.String(500, "%s", err)
 						log.Error("%s", err)
 						return
 					}
 					// write out the index page
+					var data []byte
 					data, _ = ioutil.ReadAll(dr)
 					c.Data(200, "text/html", data)
 					return
 				}
 				//&directoryListing.Append(link)
 			}
-			// TODO retrun directoryListing and a templated page
+			// TODO return directoryListing and a templated page
 		}
 		// TODO: return json object containing the tree data if it's a directory (err == ErrIsDir)
 		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	// copy the dag data back to the http request
-	data, _ = ioutil.ReadAll(dr)
-	c.Data(200, "", data)
+	io.Copy(c.Writer, dr)
 	return
 }
 

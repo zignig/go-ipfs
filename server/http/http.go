@@ -70,7 +70,7 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	r.GET("/api/v1/*path", handler.showApi)
 
 	// load the templates
-	handler.templ = LoadTemplates("settings.html", "map.html", "peers.html", "tour.html", "landing.html", "menu.html", "index.html", "listing.html")
+	handler.templ = LoadTemplates("api.html", "settings.html", "map.html", "peers.html", "tour.html", "landing.html", "menu.html", "index.html", "listing.html")
 	r.SetHTMLTemplate(handler.templ)
 
 	// top level routers

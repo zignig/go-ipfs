@@ -36,7 +36,10 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	log.Critical("starting http server")
 
 	//base router
+	// has logging and errors
 	r := gin.Default()
+	// does not have errors
+	//r := gin.New()
 
 	// bind the ipfs service
 	handler := &handler{}
@@ -64,7 +67,7 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	// peers listing
 	handler.menu.AddItem("api", "api/v1/", "terminal")
 	//TODO  wating for commands branch to drop
-	//r.GET("/peers/*path", handler.showApi)
+	r.GET("/api/v1/*path", handler.showApi)
 
 	// load the templates
 	handler.templ = LoadTemplates("settings.html", "map.html", "peers.html", "tour.html", "landing.html", "menu.html", "index.html", "listing.html")
@@ -178,6 +181,7 @@ func (i *handler) ipfsResolve(c *gin.Context) {
 			// return a directory listing
 			d := gin.H{"dirlist": dirlist}
 			c.HTML(200, "listing.html", d)
+			return
 		}
 		// TODO: return json object containing the tree data if it's a directory (err == ErrIsDir)
 		//w.WriteHeader(http.StatusInternalServerError)

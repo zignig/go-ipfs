@@ -12,20 +12,7 @@
 		<script src="/static/js/feed.js"></script>
 	</head>
 	<body id="feed">
-			<section id="menu-tabs" class="ui main fixed blue pointing filter menu tiny" >
-				<span class="item"><img height="30px" src="/static/images/ipfs-logo-128.png"></span>
-				<span class="active item "><i class="circular inbox icon"></i>ipfs</span>
-				<span class="link item "><i class="circular list layout icon"></i>Tour</span>
-				<span class="link item "><i class="circular list layout icon"></i>Config</span>
-				<div class="right menu">
-					<div class="item">
-						<div class="ui icon input">
-							<input type="text" id="search" placeholder="Hash">
-							<i class="search icon"></i>
-						</div>
-					</div>
-				</div>
-			</section>
+		{{ template "menu.html" . }}	
 		<main>
 		{{ .data }}
 		</main>

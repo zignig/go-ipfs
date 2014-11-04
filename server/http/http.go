@@ -2,12 +2,13 @@ package http
 
 import (
 	"fmt"
-	"github.com/GeertJohan/go.rice"
-	"github.com/gin-gonic/gin"
 	"html/template"
 	"io"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/GeertJohan/go.rice"
+	"github.com/gin-gonic/gin"
 
 	ma "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multiaddr"
 	manet "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multiaddr/net"
@@ -20,10 +21,12 @@ import (
 type handler struct {
 	ipfs
 	templ *template.Template
+	menu  *Menu
 }
 
 var log = u.Logger("http")
 
+// Create menu , should this be per context or global ?
 // Serve starts the http server
 //
 //ref https://github.com/spf13/dagobah
@@ -39,8 +42,13 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	handler := &handler{}
 	handler.ipfs = &ipfsHandler{node}
 
+	// setup menu
+	handler.menu = NewMenu("main")
+	handler.menu.AddItem("tour", 1, "tour/", "suitcase")
+	handler.menu.AddItem("map", 2, "map/", "sitemap")
+
 	// load the templates
-	handler.templ = LoadTemplates("index.html")
+	handler.templ = LoadTemplates("menu.html", "index.html")
 	r.SetHTMLTemplate(handler.templ)
 
 	// top level routers
@@ -88,7 +96,7 @@ func (i *handler) ipnsResolve(c *gin.Context) {
 }
 
 func (i *handler) templateTest(c *gin.Context) {
-	obj := gin.H{"title": "The Title", "data": "this is data"}
+	obj := gin.H{"title": "The Title", "data": "this is data", "menu": i.menu, "section": "tour"}
 	c.HTML(200, "index.html", obj)
 }
 
@@ -193,7 +201,6 @@ func LoadTemplates(list ...string) *template.Template {
 	if err != nil {
 		log.Critical("%s", err)
 	}
-	fmt.Println(templateBox)
 	templates := template.New("")
 	for _, x := range list {
 		templateString, err := templateBox.String(x)

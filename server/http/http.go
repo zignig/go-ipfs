@@ -45,16 +45,25 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 
 	// setup menu
 	handler.menu = NewMenu("main")
+
+	// tour panel
 	handler.menu.AddItem("tour", "tour/", "suitcase")
 	r.GET("/tour/*path", handler.runTour)
 
+	// map panel
 	handler.menu.AddItem("map", "map/", "sitemap")
+	r.GET("/map/*path", handler.showMap)
 
+	// settings panel
 	handler.menu.AddItem("settings", "settings/", "settings")
+	r.GET("/settings/*path", handler.showSettings)
 
+	// peers listing
 	handler.menu.AddItem("peers", "peers/", "list")
+	r.GET("/peers/*path", handler.showPeers)
+
 	// load the templates
-	handler.templ = LoadTemplates("tour.html", "landing.html", "menu.html", "index.html")
+	handler.templ = LoadTemplates("settings.html", "map.html", "peers.html", "tour.html", "landing.html", "menu.html", "index.html")
 	r.SetHTMLTemplate(handler.templ)
 
 	// top level routers
@@ -73,7 +82,7 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	// Landing Page
 	r.GET("/", handler.landingPage)
 
-	// TODO admin,api,tour,etc..
+	// TODO admin,api,etc..
 
 	// base router
 	http.Handle("/", r)
@@ -95,7 +104,7 @@ func (i *handler) ipnsResolve(c *gin.Context) {
 
 func (i *handler) landingPage(c *gin.Context) {
 	data := i.renderContent("landing.html", nil)
-	obj := gin.H{"title": "The Title", "data": data, "menu": i.menu, "section": ""}
+	obj := gin.H{"title": "IPFS", "data": data, "menu": i.menu, "section": ""}
 	c.HTML(200, "index.html", obj)
 }
 

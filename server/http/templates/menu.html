@@ -1,8 +1,8 @@
 <section id="menu-tabs" class="ui main blue pointing filter menu tiny" >
-	<span class="item"><img height="30px" src="/static/images/ipfs-logo-128.png"></span>
+	<a href="/"><span class="item"><img height="30px" src="/static/images/ipfs-logo-128.png"></span></a>
 	{{ $section := .section }}
 	{{ range $item := .menu.Items }}
-	<a href="{{ $item.Link }}"><span class="link {{ if eq $section $item.Name }} active {{ end }} item "><i class="circular {{ $item.Icon }} layout icon"></i>{{ $item.Name }}</span></a>
+	<a href="/{{ $item.Link }}"><span class="link {{ if eq $section $item.Name }} active {{ end }} item "><i class="circular {{ $item.Icon }} layout icon"></i>{{ $item.Name }}</span></a>
 	{{ end }} 
 	<div class="right menu">
 		<div class="item">

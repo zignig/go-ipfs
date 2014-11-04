@@ -46,11 +46,15 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	// setup menu
 	handler.menu = NewMenu("main")
 	handler.menu.AddItem("tour", "tour/", "suitcase")
+	r.GET("/tour/*path", handler.runTour)
+
 	handler.menu.AddItem("map", "map/", "sitemap")
+
 	handler.menu.AddItem("settings", "settings/", "settings")
 
+	handler.menu.AddItem("peers", "peers/", "list")
 	// load the templates
-	handler.templ = LoadTemplates("landing.html", "menu.html", "index.html")
+	handler.templ = LoadTemplates("tour.html", "landing.html", "menu.html", "index.html")
 	r.SetHTMLTemplate(handler.templ)
 
 	// top level routers
@@ -68,14 +72,6 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 
 	// Landing Page
 	r.GET("/", handler.landingPage)
-
-	// TODO fix static
-	//r.PathPrefix("/ipfs/").Handler(handler).Methods("GET")
-
-	// bind the top level routes
-	//http.Handle("/ipfs", ipfsRouter)
-	//http.Handle("/ipns", ipnsRouter)
-	//http.Handle("/static", staticRouter)
 
 	// TODO admin,api,tour,etc..
 

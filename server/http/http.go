@@ -102,9 +102,19 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	return http.ListenAndServe(host, nil)
 }
 
+// resolve ipns
+// currently broken
 func (i *handler) ipnsResolve(c *gin.Context) {
 	ipnsPath := c.Params.ByName("path")
-	c.String(500, "try to resolve ipns = %s ", ipnsPath)
+	res, err := i.ipfs.ResolveName(ipnsPath)
+	log.Critical("%s", res)
+	if err != nil {
+		c.String(500, "name error = %s ", err)
+		log.Error("%s", err)
+		return
+	}
+
+	c.String(500, "try to resolve ipns = %s , %s ", ipnsPath, res)
 	log.Error("%s", ipnsPath)
 	return
 }

@@ -12,6 +12,7 @@ import (
 
 type ipfs interface {
 	ResolvePath(string) (*dag.Node, error)
+	ResolveName(string) (string, error)
 	NewDagFromReader(io.Reader) (*dag.Node, error)
 	AddNodeToDAG(nd *dag.Node) (u.Key, error)
 	NewDagReader(nd *dag.Node) (io.Reader, error)
@@ -23,6 +24,10 @@ type ipfsHandler struct {
 
 func (i *ipfsHandler) ResolvePath(path string) (*dag.Node, error) {
 	return i.node.Resolver.ResolvePath(path)
+}
+
+func (i *ipfsHandler) ResolveName(path string) (string, error) {
+	return i.node.Namesys.Resolve(path)
 }
 
 func (i *ipfsHandler) NewDagFromReader(r io.Reader) (*dag.Node, error) {

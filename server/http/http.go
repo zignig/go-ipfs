@@ -2,7 +2,6 @@ package http
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -62,8 +61,13 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 	handler.menu.AddItem("peers", "peers/", "list")
 	r.GET("/peers/*path", handler.showPeers)
 
+	// peers listing
+	handler.menu.AddItem("api", "api/v1/", "terminal")
+	//TODO  wating for commands branch to drop
+	//r.GET("/peers/*path", handler.showApi)
+
 	// load the templates
-	handler.templ = LoadTemplates("settings.html", "map.html", "peers.html", "tour.html", "landing.html", "menu.html", "index.html")
+	handler.templ = LoadTemplates("settings.html", "map.html", "peers.html", "tour.html", "landing.html", "menu.html", "index.html", "listing.html")
 	r.SetHTMLTemplate(handler.templ)
 
 	// top level routers
@@ -97,7 +101,7 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 
 func (i *handler) ipnsResolve(c *gin.Context) {
 	ipnsPath := c.Params.ByName("path")
-
+	c.String(500, "try to resolve ipns = %s ", ipnsPath)
 	log.Error("%s", ipnsPath)
 	return
 }
@@ -121,15 +125,14 @@ func (i *handler) staticFiles(c *gin.Context) {
 	c.Request.URL.Path = original
 }
 
+// ipfsResolve , resolve ipfs and go to index or directory
 func (i *handler) ipfsResolve(c *gin.Context) {
 	path := c.Params.ByName("path")[1:]
-	fmt.Println("handle " + path)
 
 	nd, err := i.ResolvePath(path)
 	if err != nil {
-		//w.WriteHeader(http.StatusInternalServerError)
 		c.String(500, "%s", err)
-		fmt.Println(err)
+		log.Error("%s", err)
 		return
 	}
 
@@ -145,7 +148,7 @@ func (i *handler) ipfsResolve(c *gin.Context) {
 				return
 			}
 			// loop through files
-			//directoryListing := make([]string)
+			var dirlist []string
 			for _, link := range nd.Links {
 				// TODO search for more than index.html ?
 				if link.Name == "index.html" {
@@ -169,12 +172,16 @@ func (i *handler) ipfsResolve(c *gin.Context) {
 					c.Data(200, "text/html", data)
 					return
 				}
-				//&directoryListing.Append(link)
+				// append to the directory listing
+				dirlist = append(dirlist, link.Name)
 			}
-			// TODO return directoryListing and a templated page
+			// return a directory listing
+			d := gin.H{"dirlist": dirlist}
+			c.HTML(200, "listing.html", d)
 		}
 		// TODO: return json object containing the tree data if it's a directory (err == ErrIsDir)
 		//w.WriteHeader(http.StatusInternalServerError)
+		c.String(500, "%s", err)
 		return
 	}
 	// copy the dag data back to the http request
@@ -187,14 +194,14 @@ func (i *handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	nd, err := i.NewDagFromReader(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println(err)
+		log.Error("%s", err)
 		return
 	}
 
 	k, err := i.AddNodeToDAG(nd)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println(err)
+		log.Error("%s", err)
 		return
 	}
 

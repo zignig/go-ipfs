@@ -11,10 +11,8 @@
 		<script src="/static/js/jquery.min.js"></script>
 		<script src="/static/js/feed.js"></script>
 	</head>
-	<body id="feed">
+	<body id="content">
 		{{ template "menu.html" . }}	
-		<main>
-		{{ .data }}
-		</main>
+		<div class="ui page">{{ .data }}</div>
 	</body>
 </html>

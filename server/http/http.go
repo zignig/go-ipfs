@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"io"
@@ -44,11 +45,12 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 
 	// setup menu
 	handler.menu = NewMenu("main")
-	handler.menu.AddItem("tour", 1, "tour/", "suitcase")
-	handler.menu.AddItem("map", 2, "map/", "sitemap")
+	handler.menu.AddItem("tour", "tour/", "suitcase")
+	handler.menu.AddItem("map", "map/", "sitemap")
+	handler.menu.AddItem("settings", "settings/", "settings")
 
 	// load the templates
-	handler.templ = LoadTemplates("menu.html", "index.html")
+	handler.templ = LoadTemplates("landing.html", "menu.html", "index.html")
 	r.SetHTMLTemplate(handler.templ)
 
 	// top level routers
@@ -64,8 +66,8 @@ func Serve(address ma.Multiaddr, node *core.IpfsNode) error {
 
 	//r.HandleFunc("/ipfs/", handler.postHandler).Methods("POST")
 
-	// some template tests
-	r.GET("/", handler.templateTest)
+	// Landing Page
+	r.GET("/", handler.landingPage)
 
 	// TODO fix static
 	//r.PathPrefix("/ipfs/").Handler(handler).Methods("GET")
@@ -95,8 +97,9 @@ func (i *handler) ipnsResolve(c *gin.Context) {
 	return
 }
 
-func (i *handler) templateTest(c *gin.Context) {
-	obj := gin.H{"title": "The Title", "data": "this is data", "menu": i.menu, "section": "tour"}
+func (i *handler) landingPage(c *gin.Context) {
+	data := i.renderContent("landing.html", nil)
+	obj := gin.H{"title": "The Title", "data": data, "menu": i.menu, "section": ""}
 	c.HTML(200, "index.html", obj)
 }
 
@@ -195,6 +198,15 @@ func (i *handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(mh.Multihash(k).B58String()))
 }
 
+// Page content
+// Probably not the best , need to look at define in templates
+func (i *handler) renderContent(name string, data interface{}) template.HTML {
+	var doc bytes.Buffer
+	i.templ.ExecuteTemplate(&doc, name, data)
+	s := doc.String()
+	return template.HTML(s)
+}
+
 // Load templates from the rice box.
 func LoadTemplates(list ...string) *template.Template {
 	templateBox, err := rice.FindBox("templates")
@@ -202,6 +214,13 @@ func LoadTemplates(list ...string) *template.Template {
 		log.Critical("%s", err)
 	}
 	templates := template.New("")
+
+	// some helpers
+	funcMap := template.FuncMap{
+		"safehtml": func(text string) template.HTML { return template.HTML(text) },
+	}
+
+	templates.Funcs(funcMap)
 	for _, x := range list {
 		templateString, err := templateBox.String(x)
 		if err != nil {
@@ -212,5 +231,6 @@ func LoadTemplates(list ...string) *template.Template {
 			log.Fatal(err)
 		}
 	}
+
 	return templates
 }

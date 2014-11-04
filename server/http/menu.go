@@ -4,10 +4,9 @@ package http
 
 // structure for menu items
 type menuItem struct {
-	Name  string // name of the menu item
-	Order int64  // position in the menu
-	Link  string // href link
-	Icon  string // name of the icon
+	Name string // name of the menu item
+	Link string // href link
+	Icon string // name of the icon
 }
 
 // Menu item holder
@@ -24,8 +23,8 @@ func NewMenu(name string) *Menu {
 }
 
 // AddItem , add a new item to the menu
-func (m *Menu) AddItem(name string, order int64, link string, icon string) {
-	newItem := &menuItem{name, order, link, icon}
+func (m *Menu) AddItem(name string, link string, icon string) {
+	newItem := &menuItem{name, link, icon}
 	m.Items = append(m.Items, newItem)
 }
 

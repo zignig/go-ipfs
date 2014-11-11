@@ -13,7 +13,7 @@ var log = u.Logger("command")
 
 // Function is the type of function that Commands use.
 // It reads from the Request, and writes results to the Response.
-type Function func(Response, Request)
+type Function func(Request) (interface{}, error)
 
 // Marshaller is a function that takes in a Response, and returns a marshalled []byte
 // (or an error on failure)
@@ -28,7 +28,9 @@ type Marshaller func(Response) ([]byte, error)
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
 type Command struct {
+	Description string
 	Help        string
+
 	Options     []Option
 	Arguments   []Argument
 	Run         Function
@@ -64,20 +66,27 @@ func (c *Command) Call(req Request) Response {
 		return res
 	}
 
-	options, err := c.GetOptions(req.Path())
+	err = req.ConvertOptions()
 	if err != nil {
 		res.SetError(err, ErrClient)
 		return res
 	}
 
-	err = req.ConvertOptions(options)
+	output, err := cmd.Run(req)
 	if err != nil {
-		res.SetError(err, ErrClient)
+		// if returned error is a commands.Error, use its error code
+		// otherwise, just default the code to ErrNormal
+		var e Error
+		e, ok := err.(Error)
+		if ok {
+			res.SetError(e, e.Code)
+		} else {
+			res.SetError(err, ErrNormal)
+		}
 		return res
 	}
 
-	cmd.Run(res, req)
-
+	res.SetOutput(output)
 	return res
 }
 
@@ -149,13 +158,27 @@ func (c *Command) CheckArguments(req Request) error {
 		return fmt.Errorf("Expected %v arguments, got %v", len(argDefs), len(args))
 	}
 
+	// count required argument definitions
+	lenRequired := 0
+	for _, argDef := range c.Arguments {
+		if argDef.Required {
+			lenRequired++
+		}
+	}
+
 	// iterate over the arg definitions
-	for i, argDef := range c.Arguments {
+	j := 0
+	for _, argDef := range c.Arguments {
+		// skip optional argument definitions if there aren't sufficient remaining values
+		if len(args)-j <= lenRequired && !argDef.Required {
+			continue
+		}
 
 		// the value for this argument definition. can be nil if it wasn't provided by the caller
 		var v interface{}
-		if i < len(args) {
-			v = args[i]
+		if j < len(args) {
+			v = args[j]
+			j++
 		}
 
 		err := checkArgValue(v, argDef)
@@ -164,8 +187,8 @@ func (c *Command) CheckArguments(req Request) error {
 		}
 
 		// any additional values are for the variadic arg definition
-		if argDef.Variadic && i < len(args)-1 {
-			for _, val := range args[i+1:] {
+		if argDef.Variadic && j < len(args)-1 {
+			for _, val := range args[j:] {
 				err := checkArgValue(val, argDef)
 				if err != nil {
 					return err
